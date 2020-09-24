@@ -20,6 +20,7 @@ import shutil
 import warnings
 import ast
 from time import sleep
+from typing import Union
 from pathlib import Path
 import pandas as pd
 import pandas.api.types as types
@@ -28,7 +29,7 @@ from win32com import client
 from win32com.client import constants as c
 import pythoncom
 
-def col2num(col_str):
+def col2num(col_str: str) -> int:
     """
     Convert an Excel column reference to an integer
     e.g. "A" = 1, "B" = 2 e.t.c.
@@ -42,7 +43,7 @@ def col2num(col_str):
         expn += 1
     return col_num
 
-def num2col(col_int):
+def num2col(col_int: int) -> str:
     """
     Convert an Excel column index to a string
     e.g. 1 == "A", 27 == "AA" e.t.c.
@@ -55,7 +56,7 @@ def num2col(col_int):
         col_str = chr(65 + remainder) + col_str
     return col_str
 
-def rgb2hex(rgb):
+def rgb2hex(rgb: Union[list, tuple]) -> str:
     """
     Excel expects a hex value in order to fill cells
     This function allows you to supply standard RGB values to be converted to hex.
@@ -68,14 +69,14 @@ def rgb2hex(rgb):
     hexcode = int(str_value, 16)
     return hexcode
 
-def excel_date(date1):
+def excel_date(date1: Union[pd.Series, dt.datetime, dt.date]) -> float:
     """
     Convert a datetime.datetime or pandas.Series object into an Excel date float
     """
     if isinstance(date1, (dt.datetime, dt.date)):
         if isinstance(date1, dt.date):
             date1 = dt.datetime.combine(date1, dt.datetime.min.time())
-        temp = dt.datetime(1899, 12, 30)    # Excels epoch. Note, not 31st Dec but 30th!
+        temp = dt.datetime(1899, 12, 30)    # Excels epoch. Note, not 31st Dec but 30th
         delta = date1 - temp
         return float(delta.days) + (float(delta.seconds) / 86400)
     elif isinstance(date1, pd.Series):
@@ -616,39 +617,30 @@ class ExcelSpreadSheet():
         self.sheetnames = []
         for sheet in self.wb.Sheets:
             self.sheetnames.append(sheet.Name)
-        
-    def show_sheet(self, sheet):
+
+    def set_sheet_visibility(self, sheet, visibility):
         """
-        Set a worksheet to visible.
-           args:
-           sheet : The sheet to make visible
+        Set a worksheets visibility.
+            args:
+            sheet : The sheet to change the visibility of
+            visibility : The level of visibility to set. Provide either a string or int value 
+                {"visible": -1, "hidden": 1, "very hidden": 2}
         """
         self._validate_workbook()
         self._validate_worksheet(sheet)
 
-        self.wb.Sheets(sheet).Visible = -1
+        visibilty_values = {"visible": -1, "hidden": 1, "very hidden": 2}
 
-    def hide_sheet(self, sheet):
-        """
-        Set a worksheet to hidden.
-           args:
-           sheet : The sheet to hide
-        """
-        self._validate_workbook()
-        self._validate_worksheet(sheet)
+        if (isinstance(visibility, str) and visibility.lower() not in visibilty_values or
+            isinstance(visibility, int) and visibility not in [visibilty_values.values()]):
+            raise ValueError("Visibility value supplied is invalid, "
+                             "please provide a valid string or int value. "
+                             + str(visibilty_values))
 
-        self.wb.Sheets(sheet).Visible = 1
+        if visibility in visibilty_values:
+            visibility = visibilty_values[visibility]
 
-    def vhide_sheet(self, sheet):
-        """
-        Set a worksheet to very hidden
-           args:
-           sheet : The sheet to hide
-        """
-        self._validate_workbook()
-        self._validate_worksheet(sheet)
-
-        self.wb.Sheets(sheet).Visible = 2
+        self.wb.Sheets(sheet).Visible = visibility
 
     def protect_sheet(self, sheet, password=None, draw_objects=True, contents=True,
                       scenarios=True, allow_sort=False, allow_filter=False, enable_selection=True):
